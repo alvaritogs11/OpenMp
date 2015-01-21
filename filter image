@@ -1,0 +1,91 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <omp.h>
+#include <math.h>
+
+#define NPIXELX 1000
+#define NPIXELY 1000
+
+
+//Compilación con gcc -o filtro filter.c -fopenmp -lm
+int main(int argc, char **argv){
+	double start_time, run_time;
+
+    int px=NPIXELX;
+    int py=NPIXELY;
+    int diagonales = px+py-1-4;
+    int h,i,j,diagonal,elementos=0;
+    double suma, promedio;
+	int v[diagonales];
+    //double im[NPIXELX][NPIXELY];
+    double **im;
+
+    	im = (double **)malloc(py*sizeof(double*));
+	for (i=0;i<py;i++) 
+		im[i] = (double*)malloc(px*sizeof(double));
+    
+
+	start_time = omp_get_wtime();
+
+	//Calculamos la longitud de todas las diagonales
+	for(h=1;h<=diagonales;h++){
+		if(h<=(diagonales/2)){
+		   elementos++;
+		}
+		else {
+		   elementos--;
+		}
+		v[h]=elementos;
+	}
+	
+    // "Lectura/Inicialización" de la imagen 
+    for(i=0; i < px; i++)
+        for(j=0; j < py; j++)
+            im[i][j] = (double) (i*NPIXELX)+j;
+    
+    // Promedio inicial  (test de entrada)
+    suma = 0.0;
+    for(i=0; i < px; i++)
+        for(j=0; j < py; j++)
+            suma += im[i][j];
+    
+    promedio = suma /(px*py);
+    printf("El promedio inicial es %g\n", promedio);
+    
+    //Bucle a paralelizar
+
+    
+    //Paralelizamos solo el bucle interno
+    for(diagonal=1;diagonal<diagonales-1; diagonal++){
+		#pragma parallel for 
+        for(elementos=1;elementos<=v[diagonal];elementos++){
+		
+		if (diagonal >=((diagonales)/2)+1){
+			i=((diagonales)/2)+1-(elementos-1);	
+			j=elementos+(diagonal-((diagonales/2)));	
+		}
+		else {
+			i=diagonal-elementos+2;
+			j=elementos;
+		}
+
+		im[i][j] += 0.25 * sqrt((im[i-1][j]+im[i][j-1]));
+	}
+     }
+        
+   
+    // Promedio tras el filtro (test de salida)
+    suma = 0.0;
+    for(i=0; i < px; i++)
+        for(j=0; j < py; j++)
+            suma += im[i][j];
+    promedio = suma /(px*py);
+    printf("El promedio tras el filtro es %g\n", promedio);
+    run_time = omp_get_wtime() - start_time;
+    printf(" En %f segundos\n ",run_time);
+    
+    
+    return 0; 
+}
+
+
